@@ -1,0 +1,7 @@
+{
+  "name": "starter-extension",
+  "identifier": "starter-extension",
+  "version": "0.1.0",
+  "description": "Starting point for Graphite extensions.",
+  "author": "Graphite Sports"
+}

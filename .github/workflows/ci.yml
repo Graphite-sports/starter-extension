@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  # Weekly, to notice when a newly published @graphite-sports/sdk breaks the starter.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+      # No lockfile is committed, so every run resolves the latest published SDK within its semver range.
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Build and package
+        run: node ../scripts/package.mjs
