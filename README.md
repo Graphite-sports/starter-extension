@@ -28,7 +28,8 @@ npm run dev        # serves the extension on http://localhost:3002
 ```
 
 In the engine, open an event, open the **Extensions** sidebar, expand **Plugin developers**, add a
-**Dev extension** with the entry URL `http://localhost:3002/mf-manifest.json` and enable it. The
+**Dev extension** with the identifier from `extension.json` and the entry URL
+`http://localhost:3002/mf-manifest.json` and enable it. The
 contributions of `ui/src/manifest.tsx` appear in the event; reload the engine after changes.
 
 `npm run typecheck` type-checks the extension against the SDK.
@@ -48,13 +49,15 @@ node ../../contract-test/run.mjs target/release/starter-extension
 
 The contract test starts the backend like the server does, against a fake Graphite API.
 
-To run the backend yourself while developing, register it as dev extension on a self-hosted server
-(see [Dev mode](PROTOCOL.md#dev-mode)) with a port, then start it with the returned flags and that
-port:
+To run the backend yourself while developing, enter a **Backend port** in the dev extension form
+(server owner only, see [Dev mode](PROTOCOL.md#dev-mode)), copy the flags shown under **Start your
+backend with** and run, in `backends/rust`:
 
 ```bash
-cargo run -- --graphite-url=... --workspace-id=... --event-id=... --apikey=... --data-dir=... --port=4000
+cargo run -- <pasted flags> --port=<the backend port you entered>
 ```
+
+Secrets of the dev extension are set in the same sidebar.
 
 ## Package and install
 

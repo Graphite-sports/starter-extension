@@ -141,15 +141,13 @@ included too. Reconnect when the stream ends.
 ## Dev mode
 
 **Not released yet.** On a self-hosted server the developer can run the backend themselves, e.g.
-with `cargo run` or in a debugger. Logged in as the server owner:
+with `cargo run` or in a debugger. Only the server owner (password login) can do this: in the event's
+**Extensions** sidebar, under **Plugin developers**, add a **Dev extension** with the `identifier`
+from `extension.json`, the UI entry URL and a **Backend port**. The sidebar then shows the flags to
+start the backend with (a new key each time) and lets you set the dev extension's secrets by name.
 
-```
-POST /workspaces/{workspaceId}/events/{eventId}/dev-extensions   { "identifier": "...", "port": 4000 }
-→ { "identifier": "...", "port": 4000, "args": ["--graphite-url=...", ...] }
-```
-
-`args` are the flags above with a new key. Start the backend with them, listening on `127.0.0.1:<port>`;
-there is no `PORT=` handshake. The backend route of the identifier is then proxied to that port instead
-of an installed extension (`502` if nothing listens). `GET` on the same path lists dev extensions,
-`DELETE …/dev-extensions/{identifier}` removes one and revokes its key. A dev extension shares the
-secrets of the installed extension with the same identifier.
+Start the backend with these flags, listening on `127.0.0.1:<backend port>`; there is no `PORT=`
+handshake. The backend route of the identifier is then proxied to that port instead of an installed
+extension (`502` if nothing listens). A dev extension shares the secrets of the installed extension
+with the same identifier; removing it revokes its key. Underneath, the sidebar uses
+`POST|GET /workspaces/{workspaceId}/events/{eventId}/dev-extensions` and `DELETE …/{identifier}`.
