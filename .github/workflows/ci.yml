@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  ui:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,5 +22,37 @@ jobs:
       # No lockfile is committed, so every run resolves the latest published SDK within its semver range.
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
-      - name: Build and package
-        run: node ../scripts/package.mjs
+
+  # Builds the backend on each platform, runs the contract test against it and packages the extension.
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backends/rust
+      - name: Build and lint the backend
+        working-directory: backends/rust
+        run: |
+          cargo build --release --locked
+          cargo clippy --release --locked -- -D warnings
+      - name: Contract test
+        run: node contract-test/run.mjs backends/rust/target/release/starter-extension${{ runner.os == 'Windows' && '.exe' || '' }}
+      - name: Package
+        run: |
+          npm install --no-audit --no-fund --prefix ui
+          node scripts/package.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.os }}
+          path: dist/*.zip
