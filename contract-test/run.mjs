@@ -39,19 +39,29 @@ const api = createServer((req, res) => {
 });
 await new Promise((done) => api.listen(0, '127.0.0.1', done));
 
-let stopped = false;
 const dataDir = mkdtempSync(join(tmpdir(), 'extension-data-'));
-const backend = spawn(
-  resolve(executable),
-  [
-    `--graphite-url=http://127.0.0.1:${api.address().port}/api`,
-    '--workspace-id=7',
-    '--event-id=42',
-    `--apikey=${apiKey}`,
-    `--data-dir=${dataDir}`,
-  ],
-  { cwd: root, stdio: ['ignore', 'pipe', 'inherit'] },
-);
+// The key comes from the environment only, never as a flag, so it stays out of the process list.
+const { GRAPHITE_API_KEY: _, ...env } = process.env;
+const args = [
+  `--graphite-url=http://127.0.0.1:${api.address().port}/api`,
+  '--workspace-id=7',
+  '--event-id=42',
+  `--identifier=${identifier}`,
+  `--data-dir=${dataDir}`,
+];
+const withoutKey = spawn(resolve(executable), args, { cwd: root, env, stdio: ['ignore', 'ignore', 'pipe'] });
+let withoutKeyStderr = '';
+withoutKey.stderr.on('data', (chunk) => (withoutKeyStderr += chunk));
+const withoutKeyCode = await new Promise((done) => withoutKey.on('exit', done));
+check(withoutKeyCode !== 0 && withoutKeyStderr.includes('GRAPHITE_API_KEY'),
+  `backend refuses to start without GRAPHITE_API_KEY, got code ${withoutKeyCode}: ${withoutKeyStderr.trim()}`);
+
+let stopped = false;
+const backend = spawn(resolve(executable), args, {
+  cwd: root,
+  env: { ...env, GRAPHITE_API_KEY: apiKey },
+  stdio: ['ignore', 'pipe', 'inherit'],
+});
 backend.on('exit', (code, signal) => {
   if (stopped) return;
   console.error(`FAIL - backend exited early (code ${code}, signal ${signal})`);
@@ -81,6 +91,7 @@ try {
   for (let i = 0; i < 50 && !requests.some((r) => r.url === `${eventPath}/entity-changes`); i++) await sleep(100);
   check(requests.some((r) => r.url === `${eventPath}/entity-changes`), 'backend subscribed to the change stream');
   check(requests.every((r) => r.apiKey === apiKey), 'every request to the Graphite API carried x-api-key');
+  check(!args.some((arg) => arg.includes(apiKey)), 'backend ran without the api key as flag (no --apikey)');
   console.log('Contract test passed');
 } catch (error) {
   console.error(`FAIL - ${error.message}`);

@@ -5,8 +5,6 @@ use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io::Write, path::PathBuf, process::ExitCode, sync::Arc, time::Duration};
 
-/// Must match `identifier` in extension.json.
-const IDENTIFIER: &str = "starter-extension";
 /// Declared under `secrets` in extension.json, users set it in the engine.
 const EXAMPLE_SECRET: &str = "example-token";
 
@@ -73,6 +71,7 @@ async fn log_changes(graphite: Arc<Graphite>) {
 struct Graphite {
     client: reqwest::Client,
     event_url: String,
+    identifier: String,
     api_key: String,
 }
 
@@ -98,7 +97,8 @@ impl Graphite {
             // The Graphite API is local, so never send its requests through a proxy.
             client: reqwest::Client::builder().no_proxy().build().expect("the TLS backend is available"),
             event_url: format!("{}/workspaces/{}/events/{}", args.graphite_url, args.workspace_id, args.event_id),
-            api_key: args.apikey.clone(),
+            identifier: args.identifier.clone(),
+            api_key: args.api_key.clone(),
         }
     }
 
@@ -109,7 +109,7 @@ impl Graphite {
 
     /// `None` if the user has not set the secret.
     async fn secret(&self, name: &str) -> Result<Option<String>, reqwest::Error> {
-        let response = self.get(&format!("/extensions/{IDENTIFIER}/secrets/{name}/value")).await?;
+        let response = self.get(&format!("/extensions/{}/secrets/{name}/value", self.identifier)).await?;
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(None);
         }
@@ -158,12 +158,14 @@ fn bad_gateway(error: reqwest::Error) -> (StatusCode, String) {
     (StatusCode::BAD_GATEWAY, format!("Graphite API request failed: {error}"))
 }
 
-/// The flags the server starts the backend with, see PROTOCOL.md.
+/// The flags and environment the server starts the backend with, see PROTOCOL.md.
 struct Args {
     graphite_url: String,
     workspace_id: String,
     event_id: String,
-    apikey: String,
+    identifier: String,
+    /// From `GRAPHITE_API_KEY`, not a flag, so it does not show up in the process list.
+    api_key: String,
     data_dir: PathBuf,
     /// Not passed by the server: lets a developer pick the port of a dev extension.
     port: u16,
@@ -187,7 +189,9 @@ impl Args {
             graphite_url: flag("graphite-url")?,
             workspace_id: flag("workspace-id")?,
             event_id: flag("event-id")?,
-            apikey: flag("apikey")?,
+            identifier: flag("identifier")?,
+            api_key: std::env::var("GRAPHITE_API_KEY")
+                .map_err(|_| "missing environment variable GRAPHITE_API_KEY=<api key>".to_string())?,
             data_dir: flag("data-dir")?.into(),
             port,
         })
