@@ -1,13 +1,15 @@
-// Builds the UI and zips the extension package into dist/<name>-<version>.zip:
-//   extension.json, icon.png (if present), ui/ (the module federation build)
+// Builds the UI and the backend and zips the extension package into
+// dist/<name>-<version>-<platform>.zip (dist/<name>-<version>.zip without a backend):
+//   extension.json, icon.png (if present), ui/ (the module federation build), the backend at `entry`
+// The backend is built for the current machine, the registry serves one zip per platform.
 // Usage: node scripts/package.mjs   (Node >= 22, no dependencies)
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { basename, join, relative, sep } from 'node:path';
 import { crc32, deflateRawSync } from 'node:zlib';
 
 const root = join(import.meta.dirname, '..');
-const { name, version } = JSON.parse(readFileSync(join(root, 'extension.json'), 'utf8'));
+const { name, version, entry } = JSON.parse(readFileSync(join(root, 'extension.json'), 'utf8'));
 if (!/^[a-zA-Z0-9_-]+$/.test(name)) throw new Error(`extension.json: name "${name}" may only contain [a-zA-Z0-9_-]`);
 
 execSync('npm run build', { cwd: join(root, 'ui'), stdio: 'inherit' });
@@ -20,24 +22,41 @@ for (const file of readdirSync(uiDist, { recursive: true, withFileTypes: true })
   entries.push(['ui/' + relative(uiDist, path).split(sep).join('/'), path]);
 }
 
+let platform = '';
+if (entry) {
+  const platforms = { 'linux-x64': 'linux-x64', 'linux-arm64': 'linux-arm64', 'win32-x64': 'windows-x64', 'darwin-arm64': 'macos-arm64', 'darwin-x64': 'macos-x64' };
+  platform = '-' + (platforms[`${process.platform}-${process.arch}`] ?? fail(`unsupported platform ${process.platform}-${process.arch}`));
+  const backend = join(root, 'backends', 'rust');
+  execSync('cargo build --release', { cwd: backend, stdio: 'inherit' });
+  // On Windows the server finds `<entry>.exe` when `entry` has no extension, so extension.json stays the same.
+  const exe = process.platform === 'win32' ? '.exe' : '';
+  // The cargo package is named like the file of `entry`.
+  entries.push([entry + exe, join(backend, 'target', 'release', basename(entry) + exe), 0o755]);
+}
+
 mkdirSync(join(root, 'dist'), { recursive: true });
-const out = join(root, 'dist', `${name}-${version}.zip`);
-writeFileSync(out, zip(entries.map(([zipPath, path]) => [zipPath, readFileSync(path)])));
+const out = join(root, 'dist', `${name}-${version}${platform}.zip`);
+writeFileSync(out, zip(entries.map(([zipPath, path, mode]) => [zipPath, readFileSync(path), mode])));
 console.log(`Packaged ${entries.length} files into ${relative(root, out)}`);
 
-/** Minimal zip writer (deflate, no zip64), enough for extension packages. */
+function fail(message) {
+  throw new Error(message);
+}
+
+/** Minimal zip writer (deflate, no zip64), enough for extension packages. Stores unix modes, default 0644. */
 function zip(files) {
   const locals = [];
   const centrals = [];
   let offset = 0;
-  for (const [path, data] of files) {
+  for (const [path, data, mode = 0o644] of files) {
     const name = Buffer.from(path);
     const deflated = deflateRawSync(data);
     // version 2.0, flags (UTF-8 names), method (deflate), time, date (1980-01-01), crc, sizes, name length, extra length
     const fields = Buffer.concat([u16(20, 0x0800, 8, 0, 0x21), u32(crc32(data), deflated.length, data.length), u16(name.length, 0)]);
     const local = Buffer.concat([u32(0x04034b50), fields, name]);
-    // version made by, ...fields, comment length, disk, internal attributes, external attributes, local header offset
-    centrals.push(u32(0x02014b50), u16(20), fields, u16(0, 0, 0), u32(0, offset), name);
+    // version made by (unix, 2.0), ...fields, comment length, disk, internal attributes,
+    // external attributes (unix mode of a regular file in the high 16 bits), local header offset
+    centrals.push(u32(0x02014b50), u16((3 << 8) | 20), fields, u16(0, 0, 0), u32((0o100000 | mode) << 16, offset), name);
     locals.push(local, deflated);
     offset += local.length + deflated.length;
   }

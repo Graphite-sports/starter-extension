@@ -3,5 +3,12 @@
   "identifier": "starter-extension",
   "version": "0.1.0",
   "description": "Starting point for Graphite extensions.",
-  "author": "Timo Lehnertz"
+  "author": "Timo Lehnertz",
+  "entry": "backend/starter-extension",
+  "secrets": [
+    {
+      "name": "example-token",
+      "label": { "en": "Example token", "de": "Beispiel-Token" }
+    }
+  ]
 }
