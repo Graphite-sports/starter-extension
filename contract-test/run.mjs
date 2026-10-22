@@ -15,11 +15,13 @@ const { identifier, secrets } = JSON.parse(readFileSync(join(root, 'extension.js
 const secretName = secrets[0].name;
 const apiKey = 'contract-test-key';
 const secretValue = 'contract-test-secret-value';
+const eventId = '0b1e9c3a-6f7d-4e21-9a55-3d2c8f4b7e10';
+const classIds = ['5f0c2d9e-8a1b-4c3d-b7e6-1a2b3c4d5e6f', 'c4e8a1f2-3b5d-4e6f-8a9b-0c1d2e3f4a5b'];
 const classes = [
-  { class: { id: 1, name: 'U12', description: '', eventId: 42, gender: 'mixed' }, competitorCount: 3 },
-  { class: { id: 2, name: 'U14', description: '', eventId: 42, gender: 'mixed' }, competitorCount: 0 },
+  { class: { id: classIds[0], name: 'U12', description: '', eventId, gender: 'mixed' }, competitorCount: 3 },
+  { class: { id: classIds[1], name: 'U14', description: '', eventId, gender: 'mixed' }, competitorCount: 0 },
 ];
-const eventPath = '/api/workspaces/7/events/42';
+const eventPath = `/api/workspaces/7/events/${eventId}`;
 
 // The fake Graphite API. Records every request and serves only what the backend may call.
 let secretIsSet = true;
@@ -33,7 +35,7 @@ const api = createServer((req, res) => {
   }
   if (req.method === 'GET' && req.url === `${eventPath}/entity-changes`) {
     res.writeHead(200, { 'content-type': 'text/event-stream' });
-    return res.write(':keep-alive\n\nevent: mutation\ndata: [{"type":"class","data":{"id":1}}]\n\n');
+    return res.write(`:keep-alive\n\nevent: mutation\ndata: [{"type":"class","data":{"id":"${classIds[0]}"}}]\n\n`);
   }
   res.writeHead(404).end();
 });
@@ -45,7 +47,7 @@ const { GRAPHITE_API_KEY: _, ...env } = process.env;
 const args = [
   `--graphite-url=http://127.0.0.1:${api.address().port}/api`,
   '--workspace-id=7',
-  '--event-id=42',
+  `--event-id=${eventId}`,
   `--identifier=${identifier}`,
   `--data-dir=${dataDir}`,
 ];
