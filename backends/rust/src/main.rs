@@ -82,7 +82,8 @@ struct ClassResponse {
 
 #[derive(Serialize, Deserialize)]
 struct Class {
-    id: i64,
+    /// A uuid; the backend only passes it on.
+    id: String,
     name: String,
 }
 
