@@ -48,6 +48,7 @@ process list) and these flags, each as one argument of the form `--name=value`:
 | `--event-id`     | Id of the event                                                                          |
 | `--identifier`   | `identifier` of the extension, e.g. for the URLs of its own secrets and backend          |
 | `--data-dir`     | Absolute path of a directory for the extension's data in this event. It exists at start. |
+| `--port`         | Only in [dev mode](#dev-mode): the port to listen on. There is no handshake then.         |
 
 Ignore flags you do not know, later servers may add some.
 
@@ -61,7 +62,7 @@ either, it is replaced on updates. Only rely on the path passed in `--data-dir`.
 
 ## Handshake
 
-The backend binds an HTTP server to `127.0.0.1` (any free port, e.g. port `0`) and prints
+Without `--port`, the backend binds an HTTP server to `127.0.0.1` (any free port, e.g. port `0`) and prints
 
 ```
 PORT=<port>
@@ -162,11 +163,12 @@ included too. Reconnect when the stream ends.
 with `cargo run` or in a debugger. Only the server owner (password login) can do this: in the event's
 **Extensions** sidebar, under **Plugin developers**, add a **Dev extension** with the `identifier`
 from `extension.json`, the UI entry URL and a **Backend port**. The sidebar then shows the command
-line to start the backend with, `GRAPHITE_API_KEY=<key> <flags>` (a new key each time), and lets you
-set the dev extension's secrets by name. Outside a POSIX shell (e.g. on Windows or in an IDE run
-configuration) set `GRAPHITE_API_KEY` in the environment and pass the flags as arguments.
+line to start the backend with, `GRAPHITE_API_KEY=<key> <backend> <flags>` (a new key each time),
+and lets you set the dev extension's secrets by name. Replace `<backend>` with your executable or
+e.g. `cargo run --`. Outside a POSIX shell (e.g. on Windows or in an IDE run configuration) set
+`GRAPHITE_API_KEY` in the environment and pass the flags as arguments.
 
-Start the backend like that, listening on `127.0.0.1:<backend port>`; there is no `PORT=`
+The flags end with `--port=<backend port>`. Listen on `127.0.0.1` at that port; there is no `PORT=`
 handshake. The backend route of the identifier is then proxied to that port instead of an installed
 extension (`502` if nothing listens). A dev extension shares the secrets of the installed extension
 with the same identifier; removing it revokes its key. Underneath, the sidebar uses

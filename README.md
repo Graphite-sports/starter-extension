@@ -51,11 +51,11 @@ The contract test starts the backend like the server does, against a fake Graphi
 
 To run the backend yourself while developing, enter a **Backend port** in the dev extension form
 (server owner only, see [Dev mode](PROTOCOL.md#dev-mode)), copy the command line shown under **Start
-your backend with** (`GRAPHITE_API_KEY=… <flags>`), and run it in `backends/rust` with `cargo run --`
-before the flags and the port appended:
+your backend with** (`GRAPHITE_API_KEY=… <backend> … --port=…`), replace `<backend>` with
+`cargo run --` and run it in `backends/rust`:
 
 ```bash
-GRAPHITE_API_KEY=… cargo run -- <pasted flags> --port=<the backend port you entered>
+GRAPHITE_API_KEY=… cargo run -- --graphite-url=… … --port=<the backend port you entered>
 ```
 
 On Windows or in an IDE run configuration, set `GRAPHITE_API_KEY` as environment variable instead.

@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { createServer as createTcpServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -94,6 +95,7 @@ try {
   check(requests.some((r) => r.url === `${eventPath}/entity-changes`), 'backend subscribed to the change stream');
   check(requests.every((r) => r.apiKey === apiKey), 'every request to the Graphite API carried x-api-key');
   check(!args.some((arg) => arg.includes(apiKey)), 'backend ran without the api key as flag (no --apikey)');
+  await checkDevMode();
   console.log('Contract test passed');
 } catch (error) {
   console.error(`FAIL - ${error.message}`);
@@ -105,6 +107,27 @@ try {
   api.closeAllConnections();
   api.close();
   rmSync(dataDir, { recursive: true, force: true });
+}
+
+// Dev mode: the developer starts the backend with --port=<registered port> and there is no handshake.
+async function checkDevMode() {
+  const free = createTcpServer();
+  await new Promise((done) => free.listen(0, '127.0.0.1', done));
+  const port = free.address().port;
+  await new Promise((done) => free.close(done));
+  const dev = spawn(resolve(executable), [...args, `--port=${port}`], {
+    cwd: root,
+    env: { ...env, GRAPHITE_API_KEY: apiKey },
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  try {
+    const first = await createInterface({ input: dev.stdout })[Symbol.asyncIterator]().next();
+    check(!first.value?.startsWith('PORT='), `with --port the backend prints no handshake, got ${JSON.stringify(first.value)}`);
+    check((await fetch(`http://127.0.0.1:${port}/hello`)).ok, 'with --port the backend listens on that port');
+  } finally {
+    dev.kill();
+    dev.stdout.destroy();
+  }
 }
 
 async function getHello(port) {

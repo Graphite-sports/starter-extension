@@ -18,17 +18,19 @@ async fn main() -> ExitCode {
         }
     };
     // Only reachable from this machine: users reach the backend through the server's proxy.
-    let listener = match tokio::net::TcpListener::bind(("127.0.0.1", args.port)).await {
+    let listener = match tokio::net::TcpListener::bind(("127.0.0.1", args.port.unwrap_or(0))).await {
         Ok(listener) => listener,
         Err(error) => {
-            eprintln!("failed to bind 127.0.0.1:{}: {error}", args.port);
+            eprintln!("failed to bind 127.0.0.1:{}: {error}", args.port.unwrap_or(0));
             return ExitCode::FAILURE;
         }
     };
     let port = listener.local_addr().expect("a bound listener has an address").port();
-    // The handshake: the server waits up to 10 s for this as the first line on stdout.
-    println!("PORT={port}");
-    let _ = std::io::stdout().flush();
+    // The handshake: the server waits up to 10 s for this as the first line on stdout. Dev mode has none.
+    if args.port.is_none() {
+        println!("PORT={port}");
+        let _ = std::io::stdout().flush();
+    }
     // Everything printed after the handshake ends up in the extension log.
     println!("listening on 127.0.0.1:{port}, data dir {}", args.data_dir.display());
 
@@ -168,8 +170,8 @@ struct Args {
     /// From `GRAPHITE_API_KEY`, not a flag, so it does not show up in the process list.
     api_key: String,
     data_dir: PathBuf,
-    /// Not passed by the server: lets a developer pick the port of a dev extension.
-    port: u16,
+    /// Only passed in dev mode: the port the developer registered the dev extension with.
+    port: Option<u16>,
 }
 
 impl Args {
@@ -182,8 +184,8 @@ impl Args {
             })
             .collect();
         let port = match flags.remove("port") {
-            Some(port) => port.parse().map_err(|_| format!("--port={port} is not a port number"))?,
-            None => 0,
+            Some(port) => Some(port.parse().map_err(|_| format!("--port={port} is not a port number"))?),
+            None => None,
         };
         let mut flag = |name: &str| flags.remove(name).ok_or_else(|| format!("missing flag --{name}=<value>"));
         Ok(Self {
