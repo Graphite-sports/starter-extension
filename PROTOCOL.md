@@ -163,8 +163,8 @@ included too. Reconnect when the stream ends.
 with `cargo run` or in a debugger. Only the server owner (password login) can do this: in the event's
 **Extensions** sidebar, under **Plugin developers**, add a **Dev extension** with the `identifier`
 from `extension.json`, the UI entry URL and a **Backend port**. The sidebar then shows the command
-line to start the backend with, `GRAPHITE_API_KEY=<key> <backend> <flags>` (a new key each time),
-and lets you set the dev extension's secrets by name. Replace `<backend>` with your executable or
+line to start the backend with, `GRAPHITE_API_KEY=<key> <executable> <flags>` (a new key each time),
+and lets you set the dev extension's secrets by name. Replace `<executable>` with your binary or
 e.g. `cargo run --`. Outside a POSIX shell (e.g. on Windows or in an IDE run configuration) set
 `GRAPHITE_API_KEY` in the environment and pass the flags as arguments.
 
@@ -173,4 +173,5 @@ handshake. The backend route of the identifier is then proxied to that port inst
 extension (`502` if nothing listens). A dev extension shares the secrets of the installed extension
 with the same identifier; removing it revokes its key. Underneath, the sidebar uses
 `POST|GET /workspaces/{workspaceId}/events/{eventId}/dev-extensions` (`{ identifier, port }` in,
-`{ identifier, port, args, env }` out, `env` holding `GRAPHITE_API_KEY`) and `DELETE …/{identifier}`.
+`{ identifier, port, args, env, command }` out, `env` holding `GRAPHITE_API_KEY`, `command` the
+command line the sidebar shows) and `DELETE …/{identifier}`.

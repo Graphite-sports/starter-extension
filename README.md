@@ -51,7 +51,7 @@ The contract test starts the backend like the server does, against a fake Graphi
 
 To run the backend yourself while developing, enter a **Backend port** in the dev extension form
 (server owner only, see [Dev mode](PROTOCOL.md#dev-mode)), copy the command line shown under **Start
-your backend with** (`GRAPHITE_API_KEY=… <backend> … --port=…`), replace `<backend>` with
+your backend with** (`GRAPHITE_API_KEY=… <executable> … --port=…`), replace `<executable>` with
 `cargo run --` and run it in `backends/rust`:
 
 ```bash
