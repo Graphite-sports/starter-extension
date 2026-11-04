@@ -21,30 +21,28 @@ import {
 import { useLL } from './i18n/useLL';
 
 // Extension pages live below `/ext/` of an event. Path parameters are passed to the component as props.
-const pagePath = '/workspace/:workspaceId/event/:eventId/ext/starter';
+const pagePath = '/event/:eventId/ext/starter';
 
 const page: ExtensionPageContribution<typeof pagePath> = { path: pagePath, PageComponent: StarterPage };
 
 // Typesafe links to this extension's own pages.
 const buildExtensionRoute = extensionRouteBuilder(page);
 
-function StarterSidebar({ workspaceId, eventId }: ExtensionSidebarProps) {
+function StarterSidebar({ eventId }: ExtensionSidebarProps) {
   const LL = useLL();
   const { navigate } = useRouter();
   // The engine's query options read engine data through the engine's own query client.
-  const { data: classes } = useQuery(getClassesByEventQO(workspaceId, eventId));
+  const { data: classes } = useQuery(getClassesByEventQO(eventId));
   return (
     <div className="flex flex-col gap-2 p-2">
-      <AppButton href={buildExtensionRoute(pagePath, { workspaceId, eventId })}>{LL.OpenPage()}</AppButton>
+      <AppButton href={buildExtensionRoute(pagePath, { eventId })}>{LL.OpenPage()}</AppButton>
       <h2>{LL.ClassesOfEvent()}</h2>
       {classes?.map(({ class: clazz }) => (
         <button
           key={clazz.id}
           className="text-left hover:underline"
           onClick={() =>
-            navigate(
-              buildRoute('/workspace/:workspaceId/event/:eventId/class/:classId', { workspaceId, eventId, classId: clazz.id }),
-            )
+            navigate(buildRoute('/event/:eventId/class/:classId', { eventId, classId: clazz.id }))
           }
         >
           {clazz.name}
