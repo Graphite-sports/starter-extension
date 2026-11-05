@@ -44,7 +44,6 @@ process list) and these flags, each as one argument of the form `--name=value`:
 | Flag             | Value                                                                                    |
 | ---------------- | ---------------------------------------------------------------------------------------- |
 | `--graphite-url` | Base URL of the Graphite REST API without trailing slash, e.g. `http://127.0.0.1:8080/api` |
-| `--workspace-id` | Id of the workspace                                                                      |
 | `--event-id`     | Id of the event                                                                          |
 | `--identifier`   | `identifier` of the extension, e.g. for the URLs of its own secrets and backend          |
 | `--data-dir`     | Absolute path of a directory for the extension's data in this event. It exists at start. |
@@ -52,11 +51,11 @@ process list) and these flags, each as one argument of the form `--name=value`:
 
 Ignore flags you do not know, later servers may add some.
 
-Every extension gets its own data dir per event, inside the workspace directory:
-`event-<id>/local-extensions/<identifier>/data` or `event-<id>/registry-extensions/<identifier>/data`
-depending on how it is installed, and `event-<id>/dev-extensions/<identifier>/data` for a dev
-extension. It persists across restarts and new versions of the extension and belongs to the
-workspace: it is part of workspace downloads, uploads, check-ins and replication. **Never store
+Every extension gets its own data dir per event, inside the event directory:
+`local-extensions/<identifier>/data` or `registry-extensions/<identifier>/data` depending on how it
+is installed, and `dev-extensions/<identifier>/data` for a dev extension. It persists across restarts
+and new versions of the extension and belongs to the event: it is part of event downloads, uploads,
+check-ins and replication. **Never store
 secrets or credentials in it**, use [Secrets](#secrets). Do not write into the package directory
 either, it is replaced on updates. Only rely on the path passed in `--data-dir`.
 
@@ -74,13 +73,13 @@ failed to start.
 
 Everything else the backend prints to stdout (after the handshake) and to stderr goes to the
 extension's log file and to the server's console. Self-hosted servers serve the log at
-`GET /workspaces/{workspaceId}/events/{eventId}/extensions/{identifier}/log`.
+`GET /events/{eventId}/extensions/{identifier}/log`.
 
 ## Lifecycle
 
-- Started when the workspace loads (also on server start) and when the extension is installed in an
+- Started when the event loads (also on server start) and when the extension is installed in an
   event or changes version.
-- Stopped when it is uninstalled, uploaded again, when its workspace is replaced or deleted, and when
+- Stopped when it is uninstalled, uploaded again, when its event is replaced or deleted, and when
   the server stops. On unix it receives `SIGTERM` and is killed 5 seconds later if it still runs, so
   shut down gracefully within that time. On Windows it is killed right away, so keep the data dir
   consistent at all times anyway (e.g. write to a temporary file and rename it).
@@ -98,12 +97,12 @@ extension's log file and to the server's console. Self-hosted servers serve the 
 The server proxies
 
 ```
-/workspaces/{workspaceId}/events/{eventId}/extensions/{identifier}/backend/{rest}
+/events/{eventId}/extensions/{identifier}/backend/{rest}
 ```
 
 to `http://127.0.0.1:<port>/{rest}` of the backend (`…/backend` without rest goes to `/`). `GET` and
 `HEAD` require read access to the event, every other method write access (`409` on read-only
-workspaces). Users who may only read the event can call `GET` and `HEAD`, so **never change anything
+events). Users who may only read the event can call `GET` and `HEAD`, so **never change anything
 on `GET` or `HEAD`**.
 
 - Forwarded: method, path and query string exactly as the client sent them (still percent-encoded),
@@ -119,7 +118,7 @@ on `GET` or `HEAD`**.
 Send the key from `GRAPHITE_API_KEY` in the `x-api-key` header to `--graphite-url`:
 
 ```
-GET {graphite-url}/workspaces/{workspace-id}/events/{event-id}/classes
+GET {graphite-url}/events/{event-id}/classes
 x-api-key: {GRAPHITE_API_KEY}
 ```
 
@@ -131,7 +130,7 @@ server's OpenAPI description documents the endpoints.
 ## Secrets
 
 **Not released yet.** Credentials, like api keys of other services, are stored as secrets: encrypted
-on the server and never part of workspace data. Declare them in `extension.json`; names only contain
+on the server and never part of event data. Declare them in `extension.json`; names only contain
 `a-z`, `0-9` and `-`, labels map a locale to the text the engine shows:
 
 ```json
@@ -141,7 +140,7 @@ on the server and never part of workspace data. Declare them in `extension.json`
 Users set them in the engine. The backend reads a value with its own key:
 
 ```
-GET {graphite-url}/workspaces/{workspace-id}/events/{event-id}/extensions/{identifier}/secrets/{name}/value
+GET {graphite-url}/events/{event-id}/extensions/{identifier}/secrets/{name}/value
 → 200 { "value": "..." }   404 if it is not set
 ```
 
@@ -152,7 +151,7 @@ return secret values.
 
 ## Change events
 
-**Not released yet.** `GET {graphite-url}/workspaces/{workspace-id}/events/{event-id}/entity-changes`
+**Not released yet.** `GET {graphite-url}/events/{event-id}/entity-changes`
 (with `x-api-key`) is a server-sent events stream. Each `mutation` event carries a JSON array of
 entity changes of the event. Changes that can not be attributed to an event, like deletions, are
 included too. Reconnect when the stream ends.
@@ -172,6 +171,6 @@ The flags end with `--port=<backend port>`. Listen on `127.0.0.1` at that port; 
 handshake. The backend route of the identifier is then proxied to that port instead of an installed
 extension (`502` if nothing listens). A dev extension shares the secrets of the installed extension
 with the same identifier; removing it revokes its key. Underneath, the sidebar uses
-`POST|GET /workspaces/{workspaceId}/events/{eventId}/dev-extensions` (`{ identifier, port }` in,
+`POST|GET /events/{eventId}/dev-extensions` (`{ identifier, port }` in,
 `{ identifier, port, args, env, command }` out, `env` holding `GRAPHITE_API_KEY`, `command` the
 command line the sidebar shows) and `DELETE …/{identifier}`.

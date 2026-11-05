@@ -99,7 +99,7 @@ impl Graphite {
         Self {
             // The Graphite API is local, so never send its requests through a proxy.
             client: reqwest::Client::builder().no_proxy().build().expect("the TLS backend is available"),
-            event_url: format!("{}/workspaces/{}/events/{}", args.graphite_url, args.workspace_id, args.event_id),
+            event_url: format!("{}/events/{}", args.graphite_url, args.event_id),
             identifier: args.identifier.clone(),
             api_key: args.api_key.clone(),
         }
@@ -164,7 +164,6 @@ fn bad_gateway(error: reqwest::Error) -> (StatusCode, String) {
 /// The flags and environment the server starts the backend with, see PROTOCOL.md.
 struct Args {
     graphite_url: String,
-    workspace_id: String,
     event_id: String,
     identifier: String,
     /// From `GRAPHITE_API_KEY`, not a flag, so it does not show up in the process list.
@@ -190,7 +189,6 @@ impl Args {
         let mut flag = |name: &str| flags.remove(name).ok_or_else(|| format!("missing flag --{name}=<value>"));
         Ok(Self {
             graphite_url: flag("graphite-url")?,
-            workspace_id: flag("workspace-id")?,
             event_id: flag("event-id")?,
             identifier: flag("identifier")?,
             api_key: std::env::var("GRAPHITE_API_KEY")
