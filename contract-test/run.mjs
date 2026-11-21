@@ -2,10 +2,9 @@
 // against a fake Graphite API. Language-agnostic: every backend under backends/ must pass it.
 // Usage: node contract-test/run.mjs <path to the backend executable>   (Node >= 22, no dependencies)
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createServer as createTcpServer } from 'node:net';
-import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 
@@ -42,14 +41,12 @@ const api = createServer((req, res) => {
 });
 await new Promise((done) => api.listen(0, '127.0.0.1', done));
 
-const dataDir = mkdtempSync(join(tmpdir(), 'extension-data-'));
 // The key comes from the environment only, never as a flag, so it stays out of the process list.
 const { GRAPHITE_API_KEY: _, ...env } = process.env;
 const args = [
   `--graphite-url=http://127.0.0.1:${api.address().port}/api`,
   `--event-id=${eventId}`,
   `--identifier=${identifier}`,
-  `--data-dir=${dataDir}`,
 ];
 const withoutKey = spawn(resolve(executable), args, { cwd: root, env, stdio: ['ignore', 'ignore', 'pipe'] });
 let withoutKeyStderr = '';
@@ -105,7 +102,6 @@ try {
   backend.stdout.destroy();
   api.closeAllConnections();
   api.close();
-  rmSync(dataDir, { recursive: true, force: true });
 }
 
 // Dev mode: the developer starts the backend with --port=<registered port> and there is no handshake.

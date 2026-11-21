@@ -3,7 +3,7 @@
 
 use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io::Write, path::PathBuf, process::ExitCode, sync::Arc, time::Duration};
+use std::{collections::HashMap, io::Write, process::ExitCode, sync::Arc, time::Duration};
 
 /// Declared under `secrets` in extension.json, users set it in the engine.
 const EXAMPLE_SECRET: &str = "example-token";
@@ -32,7 +32,7 @@ async fn main() -> ExitCode {
         let _ = std::io::stdout().flush();
     }
     // Everything printed after the handshake ends up in the extension log.
-    println!("listening on 127.0.0.1:{port}, data dir {}", args.data_dir.display());
+    println!("listening on 127.0.0.1:{port}");
 
     let graphite = Arc::new(Graphite::new(&args));
     tokio::spawn(log_changes(graphite.clone()));
@@ -168,7 +168,6 @@ struct Args {
     identifier: String,
     /// From `GRAPHITE_API_KEY`, not a flag, so it does not show up in the process list.
     api_key: String,
-    data_dir: PathBuf,
     /// Only passed in dev mode: the port the developer registered the dev extension with.
     port: Option<u16>,
 }
@@ -193,7 +192,6 @@ impl Args {
             identifier: flag("identifier")?,
             api_key: std::env::var("GRAPHITE_API_KEY")
                 .map_err(|_| "missing environment variable GRAPHITE_API_KEY=<api key>".to_string())?,
-            data_dir: flag("data-dir")?.into(),
             port,
         })
     }
