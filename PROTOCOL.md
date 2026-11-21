@@ -46,18 +46,13 @@ process list) and these flags, each as one argument of the form `--name=value`:
 | `--graphite-url` | Base URL of the Graphite REST API without trailing slash, e.g. `http://127.0.0.1:8080/api` |
 | `--event-id`     | Id of the event                                                                          |
 | `--identifier`   | `identifier` of the extension, e.g. for the URLs of its own secrets and backend          |
-| `--data-dir`     | Absolute path of a directory for the extension's data in this event. It exists at start. |
 | `--port`         | Only in [dev mode](#dev-mode): the port to listen on. There is no handshake then.         |
 
 Ignore flags you do not know, later servers may add some.
 
-Every extension gets its own data dir per event, inside the event directory:
-`local-extensions/<identifier>/data` or `registry-extensions/<identifier>/data` depending on how it
-is installed, and `dev-extensions/<identifier>/data` for a dev extension. It persists across restarts
-and new versions of the extension and belongs to the event: it is part of event downloads, uploads,
-check-ins and replication. **Never store
-secrets or credentials in it**, use [Secrets](#secrets). Do not write into the package directory
-either, it is replaced on updates. Only rely on the path passed in `--data-dir`.
+An extension gets no directory for its data. It keeps its data in the event, as custom data and
+custom entities, and on the server in its local store and [Secrets](#secrets). Do not write into the
+package directory, it is replaced on updates.
 
 ## Handshake
 
@@ -81,8 +76,8 @@ extension's log file and to the server's console. Self-hosted servers serve the 
   event or changes version.
 - Stopped when it is uninstalled, uploaded again, when its event is replaced or deleted, and when
   the server stops. On unix it receives `SIGTERM` and is killed 5 seconds later if it still runs, so
-  shut down gracefully within that time. On Windows it is killed right away, so keep the data dir
-  consistent at all times anyway (e.g. write to a temporary file and rename it).
+  shut down gracefully within that time. On Windows it is killed right away, so keep what it writes
+  consistent at all times anyway.
 - On Linux the process is killed when the server dies without stopping it. Elsewhere a backend that
   must not outlive a crashed server has to check that itself.
 - A process that exits on its own is started again after 1, 2 and 4 seconds; exits after running
